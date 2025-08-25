@@ -1,4 +1,3 @@
-
 "use client";
 import Link from "next/link";
 import Image from "next/image";
@@ -12,6 +11,7 @@ import { hydrateFromSnapshot } from "@/lib/hydrate";
 export default function Header() {
   const cps = useGame(s => s.coinsPerSec);
   const coins = useGame(s => s.player.coins);
+  const gems = useGame(s => s.player.gems ?? 0);
   const [authErr, setAuthErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +21,7 @@ export default function Header() {
         await authWithTelegram();
         const snap = await api("/me");
         hydrateFromSnapshot(snap);
+        setAuthErr(null);
       } catch (e: any) {
         console.warn("Auth/bootstrap failed:", e?.message || e);
         setAuthErr(e?.message || "Auth failed");
@@ -38,6 +39,7 @@ export default function Header() {
         <div>
           <div className="font-semibold">Farm Hustle</div>
           <div className="small">Coins: {coins.toFixed(0)} • {cps.toFixed(1)}/s</div>
+          <div className="small">Gems: {gems}</div>
           {authErr && (
             <div className="small text-red-400">Offline: open from Telegram to sync.</div>
           )}
