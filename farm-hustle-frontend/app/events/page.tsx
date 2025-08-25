@@ -25,11 +25,12 @@ export default function Page() {
   async function getInvite() {
     setError(null);
     try {
-      const res = await api<{link:string}>('/progress/invite_link');
-      setInviteLink(res.link);
-      try { await navigator.clipboard.writeText(res.link); } catch {}
+      const res = await api<{startapp_link:string; fallback_start_link:string}>("/progress/invite_link");
+      const link = res.startapp_link || res.fallback_start_link;
+      setInviteLink(link);
+      try { await navigator.clipboard.writeText(link); } catch {}
     } catch (e:any) {
-      setError(e?.message || 'Invite link error');
+      setError(e?.message || "Invite link error");
     }
   }
 
@@ -58,7 +59,10 @@ export default function Page() {
 
         <EventBanner title="Invite Friends" text="Share the game. When they join, you both get a tiny bonus." />
         <button className="btn" onClick={getInvite}>Get Invite Link</button>
-        {inviteLink && <div className="small break-all">{inviteLink}</div>}
+        {inviteLink && <div className="small break-all">
+          <div>StartApp Link (recommended):</div>
+          <div>{inviteLink}</div>
+        </div>}
 
         <div className="card">
           <div className="font-semibold mb-2">Referral Stats</div>

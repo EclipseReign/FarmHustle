@@ -27,8 +27,9 @@ def invite_link(authorization: str | None = Header(default=None), db: Session = 
     bot = (getattr(settings, "BOT_USERNAME", None) or "").strip()
     if not bot:
         raise HTTPException(status_code=400, detail="BOT_USERNAME not set on server")
-    link = f"https://t.me/{bot}?start=ref_{user.tg_user_id}"
-    return {"link": link}
+    link_startapp = f"https://t.me/{bot}?startapp=ref_{user.tg_user_id}"
+    link_start = f"https://t.me/{bot}?start=ref_{user.tg_user_id}"
+    return {"startapp_link": link_startapp, "fallback_start_link": link_start}
 
 @router.get("/progress/referrals/stats")
 def referrals_stats(authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
