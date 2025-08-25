@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
+from datetime import datetime
+import json
+
 from ..db import get_db
-from ..models import User, UserBuilding
+from ..models import User, Referral
 from ..schemas import AuthIn, TokenOut, SnapshotOut, BuildingOut, BoostOut
 from ..security import verify_telegram_init_data, make_jwt, decode_jwt
 from ..economy import ensure_user_buildings, CATALOG, current_income_per_sec
-from datetime import datetime
 
 router = APIRouter(tags=["auth"])
 
@@ -27,32 +29,41 @@ def get_user_from_token(db: Session, auth_header: str | None) -> User:
 @router.post("/auth/telegram", response_model=TokenOut)
 def auth_telegram(body: AuthIn, db: Session = Depends(get_db)):
     data = verify_telegram_init_data(body.init_data)
-    tg_user = data.get("user")
-    # If user is URL-encoded JSON, parse; else it's string
-    import json
 
+    tg_user = data.get("user")
     if isinstance(tg_user, str):
         try:
             tg_user = json.loads(tg_user)
         except Exception:
             pass
+
     tg_id = str(tg_user.get("id"))
     name = tg_user.get("username") or tg_user.get("first_name") or "Player"
+
     user = db.query(User).filter_by(tg_user_id=tg_id).first()
+    start_param = data.get("start_param") or data.get("startapp_param")
+    if start_param and isinstance(start_param, str) and start_param.startswith("ref_"):
+        inviter_tg = start_param[4:]
+        if inviter_tg != tg_id:
+            inviter = db.query(User).filter_by(tg_user_id=inviter_tg).first()
+            if inviter:
+                existing = db.query(Referral).filter_by(invited_user_id=user.id).first() if user.id else None
+                if not existing:
+                    inviter.gems += 5
+                    user.gems += 2
+                    db.add(Referral(inviter_tg_user_id=inviter_tg, invited_user_id=user.id))
     if not user:
         user = User(tg_user_id=tg_id, name=name)
         db.add(user)
         db.flush()
-        # give starter buildings
-        from ..economy import ensure_user_buildings
-
         ensure_user_buildings(db, user)
     else:
         user.name = name
-    # refresh cps
+
     user.cps_cached = current_income_per_sec(user)
     user.last_tick_at = datetime.utcnow()
     db.commit()
+
     token = make_jwt({"uid": user.id, "tg": tg_id})
     return {"token": token}
 
@@ -60,7 +71,6 @@ def auth_telegram(body: AuthIn, db: Session = Depends(get_db)):
 @router.get("/me", response_model=SnapshotOut)
 def me(authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
     user = get_user_from_token(db, authorization)
-    from ..economy import current_income_per_sec
 
     cps = current_income_per_sec(user)
     user.cps_cached = cps
@@ -78,6 +88,7 @@ def me(authorization: str | None = Header(default=None), db: Session = Depends(g
                 upgradeCost=c["upgradeCost"],
             )
         )
+
     boosts = []
     for b in user.boosts:
         if b.ends_at > datetime.utcnow():
@@ -90,6 +101,7 @@ def me(authorization: str | None = Header(default=None), db: Session = Depends(g
                     target_ids=b.targets.get("ids", []),
                 )
             )
+
     return {
         "name": user.name,
         "coins": user.coins,

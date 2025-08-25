@@ -1,15 +1,32 @@
+
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGame } from "@/lib/store";
 import { initTelegramTheme } from "@/lib/telegram";
+import { authWithTelegram } from "@/lib/auth";
+import { api } from "@/lib/api";
+import { hydrateFromSnapshot } from "@/lib/hydrate";
 
 export default function Header() {
   const cps = useGame(s => s.coinsPerSec);
   const coins = useGame(s => s.player.coins);
+  const [authErr, setAuthErr] = useState<string | null>(null);
+
   useEffect(() => {
     initTelegramTheme();
+    (async () => {
+      try {
+        await authWithTelegram();
+        const snap = await api("/me");
+        hydrateFromSnapshot(snap);
+      } catch (e: any) {
+        console.warn("Auth/bootstrap failed:", e?.message || e);
+        setAuthErr(e?.message || "Auth failed");
+      }
+    })();
+
     const id = setInterval(() => useGame.getState().tick(), 1000);
     return () => clearInterval(id);
   }, []);
@@ -21,6 +38,9 @@ export default function Header() {
         <div>
           <div className="font-semibold">Farm Hustle</div>
           <div className="small">Coins: {coins.toFixed(0)} • {cps.toFixed(1)}/s</div>
+          {authErr && (
+            <div className="small text-red-400">Offline: open from Telegram to sync.</div>
+          )}
         </div>
       </div>
       <nav className="flex items-center gap-3">

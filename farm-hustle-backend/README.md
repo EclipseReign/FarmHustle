@@ -1,6 +1,7 @@
 # Farm Hustle — Backend (FastAPI + PostgreSQL)
 
 Production-ready skeleton for Railway. Provides:
+
 - Telegram WebApp auth (initData verification)
 - User/profile bootstrap
 - Authoritative actions: rotate boosts, upgrade building, prestige
@@ -9,6 +10,7 @@ Production-ready skeleton for Railway. Provides:
 - Admin endpoints to set monthly net revenue and finalize payouts
 
 ## Quick Start (local)
+
 ```bash
 python -m venv .venv && . .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -57,3 +59,14 @@ Notes
 All economy is server-side in economy.py (mirror with frontend for UX; server is authoritative).
 
 Replace stubbed token math with your exact balance design when ready.
+
+# Patch 01 — Daily Bonus + Referrals
+
+This patch adds:
+- `/progress/daily/claim` — once per day reward
+- Referral capture on `/auth/telegram` via `start_param=ref_<tg_user_id>`
+- `/progress/invite_link` — returns `t.me/<BOT_USERNAME>?start=ref_<tg_user_id>` if `BOT_USERNAME` is set
+
+## New env (backend)
+- `BOT_USERNAME` (without @) — optional but recommended for invite links.
+```

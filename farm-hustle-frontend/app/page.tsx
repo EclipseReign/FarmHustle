@@ -1,3 +1,4 @@
+
 'use client';
 import Header from "@/components/Header";
 import BuildingCard from "@/components/BuildingCard";
@@ -5,6 +6,8 @@ import BoostTimer from "@/components/BoostTimer";
 import SetBonusCard from "@/components/SetBonusCard";
 import EventBanner from "@/components/EventBanner";
 import { useGame } from "@/lib/store";
+import { api } from "@/lib/api";
+import { hydrateFromSnapshot } from "@/lib/hydrate";
 
 export default function Page() {
   return (
@@ -23,8 +26,18 @@ export default function Page() {
 }
 
 function RotateButton() {
-  const rotate = useGame(s => s.triggerBoostRotation);
-  return <button className="btn" onClick={rotate}>Rotate Hot Zones</button>;
+  const rotateLocal = useGame(s => s.triggerBoostRotation);
+  const onClick = async () => {
+    try {
+      await api("/game/rotate", { method: "POST" });
+      const snap = await api("/me");
+      hydrateFromSnapshot(snap);
+    } catch (e) {
+      console.warn("Server rotate failed, using local fallback.", e);
+      rotateLocal();
+    }
+  };
+  return <button className="btn" onClick={onClick}>Rotate Hot Zones</button>;
 }
 
 function FarmGrid() {

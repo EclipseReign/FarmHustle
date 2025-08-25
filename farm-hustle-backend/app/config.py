@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     PRIZE_POOL_MIN_USD: float = 10.0
     ALLOWED_ORIGINS: str = "*"
     SEASON_LENGTH_DAYS: int = 30
+    BOT_USERNAME: str | None = None
 
 
 class Config:
