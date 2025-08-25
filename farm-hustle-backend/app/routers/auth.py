@@ -40,39 +40,39 @@ def auth_telegram(body: AuthIn, db: Session = Depends(get_db)):
     tg_id = str(tg_user.get("id"))
     name = tg_user.get("username") or tg_user.get("first_name") or "Player"
 
+    # 1) Создаём/обновляем пользователя заранее, чтобы был user.id
     user = db.query(User).filter_by(tg_user_id=tg_id).first()
-
-    # если пользователя нет — создаём, чтобы у нас уже был user.id
     if not user:
         user = User(tg_user_id=tg_id, name=name)
         db.add(user)
-        db.flush()              # получаем user.id сразу
+        db.flush()                      # теперь у нас есть user.id
         ensure_user_buildings(db, user)
     else:
         user.name = name
-    
-    # --- обработка рефералки (после создания user) ---
+
+    # 2) Обработка рефералки ОДИН РАЗ на первого входа
     start_param = (
         data.get("start_param")
-        or data.get("tgWebAppStartParam")
-        or data.get("startapp_param")
+        or data.get("tgWebAppStartParam")     # desktop/mobile иногда кладут сюда
+        or data.get("startapp_param")         # на всякий случай
     )
+
     if isinstance(start_param, str) and start_param.startswith("ref_"):
         inviter_tg = start_param[4:]
-        if inviter_tg != tg_id:   # защита от самореферала
+        if inviter_tg != tg_id:
             inviter = db.query(User).filter_by(tg_user_id=inviter_tg).first()
             if inviter:
-                existing = db.query(Referral).filter_by(invited_user_id=user.id).first()
-                if not existing:
+                already = db.query(Referral).filter_by(invited_user_id=user.id).first()
+                if not already:
                     inviter.gems += 5
                     user.gems += 2
                     db.add(Referral(inviter_tg_user_id=inviter_tg, invited_user_id=user.id))
-    
-    # остальная логика:
+
+    # 3) Остальная логика
     user.cps_cached = current_income_per_sec(user)
     user.last_tick_at = datetime.utcnow()
     db.commit()
-    
+
     token = make_jwt({"uid": user.id, "tg": tg_id})
     return {"token": token}
 
